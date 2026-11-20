@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team One — Task Board</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,Arial,sans-serif;margin:0;background:#f2f4f7;color:#111}
+header{background:#0b3d2e;color:#fff;padding:16px}header h1{margin:0;font-size:22px}header p{margin:4px 0 0;opacity:.85;font-size:14px}
+main{max-width:900px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:10px;padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+input,select,textarea,button{font-size:16px;padding:10px;border:1px solid #ccc;border-radius:8px;width:100%;margin:6px 0}
+button{background:#0b3d2e;color:#fff;border:0;cursor:pointer;font-weight:600}button.secondary{background:#e5e7eb;color:#111}
+button.small{width:auto;padding:6px 12px;font-size:14px;margin:4px 4px 0 0}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:13px;font-weight:700}
+.Pending{background:#fef3c7}.InProgress{background:#dbeafe}.Submitted{background:#ede9fe}.Done{background:#dcfce7}
+.Overdue{background:#fee2e2;color:#b91c1c}
+.task{border:1px solid #e5e7eb;border-left:5px solid #0b3d2e;border-radius:8px;padding:12px;margin:10px 0}
+.task.overdue{border-left-color:#dc2626;background:#fff7f7}
+.task h3{margin:0 0 6px}.muted{color:#555;font-size:14px}
+.filters{display:flex;gap:6px;flex-wrap:wrap}.filters button{width:auto;background:#e5e7eb;color:#111;padding:7px 12px}
+.filters button.active{background:#0b3d2e;color:#fff}
+.logins{font-size:14px;line-height:1.7;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px}
+.logins code{background:#e5e7eb;padding:1px 6px;border-radius:4px}
+#err{color:#b91c1c;font-weight:600}
+.hidden{display:none}
+</style></head><body>
+<header><h1>Team One</h1><p>Shared task board — leader assigns, partners submit, everyone sees everything.</p></header>
+<main>
+<div id="login" class="card">
+  <h2 style="margin-top:0">Log in</h2>
+  <p id="err"></p>
+  <label>Username<input id="username" placeholder="e.g. rauf" autocomplete="username"></label>
+  <label>Password<input id="password" type="password" placeholder="Password" autocomplete="current-password"></label>
+  <button onclick="doLogin()">Log in</button>
+  <h3>Test logins (change these before real use)</h3>
+  <div class="logins">
+    Leader: <code>rauf / rauf123</code> — Muhammad Rauf<br>
+    <code>kamran / kamran123</code> — Kamran Khan<br>
+    <code>ishtiaq / ishtiaq123</code> — Ishtiaq Ahmed<br>
+    <code>umar / umar123</code> — Muhammad Umar<br>
+    <code>amar / amar123</code> — Muhammad Amar<br>
+    <code>danish / danish123</code> — Muhammad Danish<br>
+    <code>wilayatullah / wilayatullah123</code> — Wilayatullah
+  </div>
+  <p class="muted">Tap a name below to fill it in:</p>
+  <div id="quick"></div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="card"><b id="who"></b> <span id="role"></span>
+    <button class="secondary small" style="float:right" onclick="logout()">Log out</button>
+    <div class="muted" id="counts"></div>
+    <div class="filters" id="statusFilters"></div>
+    <div style="margin-top:8px"><select id="memberFilter"><option value="">All members</option></select>
+    <select id="viewFilter"><option value="all">All tasks</option><option value="mine">My tasks only</option></select></div>
+  </div>
+
+  <div id="assignCard" class="card hidden">
+    <h2 style="margin-top:0">Assign a task (leader only)</h2>
+    <input id="tTitle" placeholder="Task title *">
+    <textarea id="tDesc" placeholder="What needs to be done?"></textarea>
+    <select id="tAssign"></select>
+    <label>Due date * <input id="tDue" type="date"></label>
+    <button onclick="createTask()">Assign task</button>
+    <p id="assignErr" style="color:#b91c1c"></p>
+  </div>
+
+  <div class="card"><h2 style="margin-top:0">Tasks</h2><div id="tasks"></div></div>
+
+  <div class="card"><h2 style="margin-top:0">Members</h2><div id="members"></div>
+  <details><summary>Change my password</summary>
+  <input id="newPw" type="password" placeholder="New password (min 4 characters)">
+  <button onclick="changePw()">Change password</button><span id="pwMsg"></span></details></div>
+</div>
+</main>
+<script>
+let me=null, board=null, statusFilter='All', memberFilter='', viewFilter='all';
+const LOGINS=[['rauf','Muhammad Rauf'],['kamran','Kamran Khan'],['ishtiaq','Ishtiaq Ahmed'],['umar','Muhammad Umar'],['amar','Muhammad Amar'],['danish','Muhammad Danish'],['wilayatullah','Wilayatullah']];
+document.getElementById('quick').innerHTML=LOGINS.map(([u,n])=>`<button class="secondary small" onclick="document.getElementById('username').value='${u}';document.getElementById('password').focus()">${n}</button>`).join('');
+async function api(path, body){
+  const r=await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||('Error '+r.status)); return j;
+}
+async function doLogin(){
+  try{ const j=await api('/api/login',{username:document.getElementById('username').value,password:document.getElementById('password').value}); loadBoard(); }
+  catch(e){ document.getElementById('err').textContent=e.message; }
+}
+async function logout(){ await api('/api/logout',{}); location.reload(); }
+async function loadBoard(){
+  board=await api('/api/board'); me=board.me;
+  document.getElementById('login').classList.add('hidden'); document.getElementById('app').classList.remove('hidden');
+  document.getElementById('who').textContent='Hello, '+me.name;
+  document.getElementById('role').textContent=me.leader?' — LEADER':'' ;
+  document.getElementById('assignCard').classList.toggle('hidden',!me.leader);
+  document.getElementById('tAssign').innerHTML=board.members.map(m=>`<option value="${m.username}">${m.name}${m.leader?' (Leader)':''}</option>`).join('');
+  document.getElementById('memberFilter').innerHTML='<option value="">All members</option>'+board.members.map(m=>`<option value="${m.username}">${m.name}</option>`).join('');
+  document.getElementById('members').innerHTML=board.members.map(m=>{
+    const n=board.tasks.filter(t=>t.assigned_to===m.username && t.status!=='Done').length;
+    const o=board.tasks.filter(t=>t.assigned_to===m.username && t.overdue).length;
+    return `<div>${m.name}${m.leader?' — Leader':''} · ${n} open task(s) ${o?`<span class="badge Overdue">${o} OVERDUE</span>`:''}</div>`;}).join('');
+  render();
+}
+function render(){
+  const t=board.tasks;
+  const c=s=>t.filter(x=>s==='All'?true:s==='Overdue'?x.overdue:x.status===s).length;
+  document.getElementById('counts').textContent=`All ${c('All')} · Pending ${c('Pending')} · In Progress ${c('In Progress')} · Submitted ${c('Submitted')} · Done ${c('Done')} · Overdue ${c('Overdue')} · Today ${board.today}`;
+  const statuses=['All','Pending','In Progress','Submitted','Done','Overdue'];
+  document.getElementById('statusFilters').innerHTML=statuses.map(s=>`<button class="${statusFilter===s?'active':''}" onclick="statusFilter='${s}';render()">${s} (${c(s)})</button>`).join('');
+  let list=t.filter(x=>statusFilter==='All'?true:statusFilter==='Overdue'?x.overdue:x.status===statusFilter);
+  if(memberFilter) list=list.filter(x=>x.assigned_to===memberFilter);
+  if(viewFilter==='mine') list=list.filter(x=>x.assigned_to===me.username);
+  document.getElementById('tasks').innerHTML=list.length?list.map(x=>`
+   <div class="task ${x.overdue?'overdue':''}"><h3>${x.title} ${x.overdue?'<span class="badge Overdue">🔴 OVERDUE</span>':''}</h3>
+   <div class="muted">${x.description||''}</div>
+   <div>Assigned to: <b>${x.assigned_name}</b> · Assigned by: ${x.assigned_by_name}</div>
+   <div>Due date: <b>${x.due_date}</b> · Status: <span class="badge ${x.status.replace(' ','')}">${x.status}</span></div>
+   ${x.submission?`<div><b>Submission:</b> ${x.submission} ${x.submission_link?`<a href="${x.submission_link}" target="_blank" rel="noopener">link</a>`:''}</div>`:''}
+   ${x.history&&x.history.length?`<div class="muted">${x.history.join('<br>')}</div>`:''}
+   <div>${x.assigned_to===me.username && x.status==='Pending'?`<button class="small" onclick="act(${x.id},'start')">Start work</button>`:''}
+   ${x.assigned_to===me.username && x.status!=='Done' && x.status!=='Submitted'?`<button class="small" onclick="submitTask(${x.id})">Submit work</button>`:''}
+   ${x.assigned_to===me.username && x.status==='Submitted'?`<button class="small" onclick="submitTask(${x.id})">Update submission</button>`:''}
+   ${me.leader && x.status==='Submitted'?`<button class="small" onclick="act(${x.id},'done')">Mark Done ✓</button><button class="small secondary" onclick="sendBack(${x.id})">Send back</button>`:''}
+   ${me.leader?`<button class="small secondary" onclick="if(confirm('Delete this task?'))act(${x.id},'delete')">Delete</button>`:''}</div>
+   </div>`).join(''):'<p>No tasks match this filter.</p>';
+}
+document.getElementById('memberFilter').onchange=e=>{memberFilter=e.target.value;render()};
+document.getElementById('viewFilter').onchange=e=>{viewFilter=e.target.value;render()};
+async function act(id,action){ await api(`/api/tasks/${id}/${action}`,{}); await loadBoard(); }
+async function createTask(){
+  try{ await api('/api/tasks',{title:document.getElementById('tTitle').value,description:document.getElementById('tDesc').value,assigned_to:document.getElementById('tAssign').value,due_date:document.getElementById('tDue').value});
+    document.getElementById('tTitle').value='';document.getElementById('tDesc').value='';document.getElementById('assignErr').textContent=''; await loadBoard(); }
+  catch(e){ document.getElementById('assignErr').textContent=e.message; }
+}
+async function submitTask(id){
+  const note=prompt('What did you do? Write your submission note:'); if(note===null) return;
+  const link=prompt('Link to your work (optional — leave blank if none):')||'';
+  try{ await api(`/api/tasks/${id}/submit`,{submission:note,submission_link:link}); await loadBoard(); }catch(e){ alert(e.message); }
+}
+async function sendBack(id){ const note=prompt('Why are you sending it back?')||''; await api(`/api/tasks/${id}/sendback`,{note}); await loadBoard(); }
+async function changePw(){ try{ await api('/api/change-password',{new_password:document.getElementById('newPw').value}); document.getElementById('pwMsg').textContent=' Password changed.'; }catch(e){ document.getElementById('pwMsg').textContent=' '+e.message; } }
+document.getElementById('password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+fetch('/api/me').then(r=>{if(r.ok)loadBoard()}).catch(()=>{});
+</script></body></html>

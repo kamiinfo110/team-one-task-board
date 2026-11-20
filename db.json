@@ -1,0 +1,48 @@
+{
+  "users": [
+    {
+      "username": "rauf",
+      "name": "Muhammad Rauf",
+      "leader": true,
+      "password_hash": "5f5fad5b8b2cb3506da3100dc443637784c791563e18b3ffd0c691187dda5917"
+    },
+    {
+      "username": "kamran",
+      "name": "Kamran Khan",
+      "leader": false,
+      "password_hash": "51757844609df5e77658dadf1d8b63d0427c6f3a760735f46199d46adef11520"
+    },
+    {
+      "username": "ishtiaq",
+      "name": "Ishtiaq Ahmed",
+      "leader": false,
+      "password_hash": "724b100a31f11073b7b32f2c9ecd0eabdd12550496f18b6974c59426558b8b26"
+    },
+    {
+      "username": "umar",
+      "name": "Muhammad Umar",
+      "leader": false,
+      "password_hash": "c03f6cdbdd80b7afb2204b2466d73f708f1e3e8f18a9f84bb56aafbc603573ef"
+    },
+    {
+      "username": "amar",
+      "name": "Muhammad Amar",
+      "leader": false,
+      "password_hash": "8664d0daebac3f0c55df66f9d3bcf9cb944d7d03f9b50fd88faf6b1e4ffac5d3"
+    },
+    {
+      "username": "danish",
+      "name": "Muhammad Danish",
+      "leader": false,
+      "password_hash": "ca9a1f2164221c5e57fd8163806933219725e425d533ab3f0b9c524f75c979f8"
+    },
+    {
+      "username": "wilayatullah",
+      "name": "Wilayatullah",
+      "leader": false,
+      "password_hash": "af6f8c6a2b51cfea8932e3fcc34c65f9e745b9486f831192a4a4fa745944b527"
+    }
+  ],
+  "tasks": [],
+  "next_task_id": 2
+}
